@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>My Vocab Ultra</title>
 
 <style>
@@ -48,7 +48,7 @@ margin-top:10px;
 padding:12px;
 border-radius:12px;
 border:1px solid #ccc;
-font-size:16px
+font-size:16px;
 }
 
 main{padding:16px}
@@ -112,10 +112,10 @@ border-radius:14px
 .modal-content textarea{
 width:100%;
 margin-bottom:8px;
-padding:10px;
+padding:12px;
 border-radius:8px;
 border:1px solid #ccc;
-font-size:14px
+font-size:16px;
 }
 
 .modal-actions{
@@ -128,6 +128,17 @@ margin-top:10px
 .delete{background:#e53935}
 .cancel{background:#bbb}
 .audio{background:#2ecc71}
+
+.pronIPA{
+margin-top:8px;
+font-style:italic;
+color:#444
+}
+
+.pronResult{
+margin-top:8px;
+font-weight:600
+}
 </style>
 </head>
 
@@ -153,7 +164,7 @@ margin-top:10px
 
 <main id="list"></main>
 
-<!-- EDIT MODAL -->
+<!-- EDIT -->
 <div class="modal" id="modal">
 <div class="modal-content">
 <input id="word" placeholder="Word">
@@ -176,21 +187,25 @@ margin-top:10px
 </div>
 </div>
 
-<!-- PRON MODAL -->
+<!-- PRON -->
 <div class="modal" id="pronModal">
 <div class="modal-content">
-<input id="pronWord" placeholder="Type word">
+<input id="pronWord" placeholder="Type word" oninput="lookupIPA()">
+
+<div class="pronIPA" id="pronIPA"></div>
+
 <div class="modal-actions">
-<button class="audio" onclick="speak(pronWord.value)">Hear</button>
+<button class="audio" onclick="hearPron()">Hear</button>
 <button class="save" onclick="testPron()">Test</button>
 <button class="cancel" onclick="closePron()">Close</button>
 </div>
-<div id="pronResult"></div>
+
+<div class="pronResult" id="pronResult"></div>
 </div>
 </div>
 
 <script>
-let data = JSON.parse(localStorage.getItem("vocab")||"[]");
+let data=JSON.parse(localStorage.getItem("vocab")||"[]");
 let editIndex=null;
 let showFav=false;
 
@@ -204,10 +219,10 @@ if(showFav && !v.fav) return false;
 return v.word.toLowerCase().includes(q)||v.meaning.toLowerCase().includes(q);
 });
 
-document.getElementById("count").innerText="Total vocabulary: "+data.length;
+count.innerText="Total vocabulary: "+data.length;
 
-filtered.forEach((v,i)=>{
-const realIndex=data.indexOf(v);
+filtered.forEach(v=>{
+const i=data.indexOf(v);
 
 const d=document.createElement("div");
 d.className="card";
@@ -222,8 +237,8 @@ d.innerHTML=`
 <span onclick="speakSlow('${v.word}')">🐢</span>
 </div>
 
-<div class="pencil" onclick="edit(${realIndex})">✏️</div>
-<div class="star ${v.fav?'active':''}" onclick="toggleFav(${realIndex})">★</div>
+<div class="pencil" onclick="edit(${i})">✏️</div>
+<div class="star ${v.fav?'active':''}" onclick="toggleFav(${i})">★</div>
 `;
 
 list.appendChild(d);
@@ -356,8 +371,27 @@ i.click();
 }
 
 /* pronunciation */
-function openPron(){pronModal.style.display="flex"}
-function closePron(){pronModal.style.display="none";pronResult.innerHTML=""}
+
+function openPron(){
+pronWord.value="";
+pronIPA.innerHTML="";
+pronResult.innerHTML="";
+pronModal.style.display="flex";
+}
+
+function closePron(){
+pronModal.style.display="none";
+}
+
+function lookupIPA(){
+const w=pronWord.value.toLowerCase().trim();
+const found=data.find(v=>v.word.toLowerCase()==w);
+pronIPA.innerHTML=found?found.pronounce:"";
+}
+
+function hearPron(){
+speak(pronWord.value);
+}
 
 function testPron(){
 let target=pronWord.value.toLowerCase().trim();
