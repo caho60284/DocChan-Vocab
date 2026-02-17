@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Vocab Ultra</title>
+
+<style>
+body{
+font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
+background:#f3f5f9;margin:0;padding:0
+}
+header{
+padding:16px;background:white;position:sticky;top:0;z-index:10;
+box-shadow:0 2px 6px rgba(0,0,0,.08)
+}
+h1{margin:0;font-size:22px}
+.count{color:#666;font-size:14px;margin-top:4px}
+.controls{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+button{
+border:none;border-radius:10px;padding:10px 14px;
+font-size:14px;cursor:pointer;color:white
+}
+.import{background:#2d8cff}
+.export{background:#7a5cff}
+.deleteall{background:#e74c3c}
+.favbtn{background:#f39c12}
+.refresh{background:#2ecc71}
+.add{background:#cfd8e3;color:#333;font-size:20px}
+
+.search{
+margin-top:12px;width:100%;padding:10px 12px;
+border-radius:10px;border:1px solid #ccc;font-size:16px
+}
+
+.list{padding:14px}
+.card{
+background:white;border-radius:14px;padding:14px;margin-bottom:12px;
+box-shadow:0 2px 6px rgba(0,0,0,.06)
+}
+.word{font-weight:700;font-size:18px}
+.pron{color:#666;margin-top:2px}
+.meaning{margin-top:4px}
+
+.icons{margin-top:6px;font-size:20px}
+.icons span{margin-right:8px;cursor:pointer}
+
+.star{
+float:right;font-size:22px;cursor:pointer
+}
+
+.modal{
+position:fixed;inset:0;background:rgba(0,0,0,.35);
+display:none;align-items:center;justify-content:center;z-index:50
+}
+.modalbox{
+background:white;border-radius:16px;padding:16px;
+width:92%;max-width:420px;max-height:90vh;overflow:auto
+}
+.modalbox input,.modalbox textarea{
+width:100%;padding:10px;border-radius:10px;
+border:1px solid #ccc;margin-bottom:8px;font-size:14px
+}
+.modalbtns{
+display:flex;gap:10px;margin-top:10px
+}
+.save{background:#2d8cff}
+.del{background:#e74c3c}
+.cancel{background:#aaa}
+.exbtn{background:#2ecc71;flex:1}
+
+</style>
+</head>
+<body>
+
+<header>
+<h1>📘 My Vocab Ultra</h1>
+<div class="count" id="count">Total vocabulary: 0</div>
+
+<div class="controls">
+<button class="import" onclick="importCSV()">📥 Import</button>
+<button class="export" onclick="exportCSV()">📤 Export</button>
+<button class="deleteall" onclick="deleteAll()">🧨 Delete All</button>
+<button class="favbtn" onclick="showFav()">⭐ Favorites</button>
+<button class="refresh" onclick="refreshList()">🔄</button>
+<button class="add" onclick="openModal()">+</button>
+</div>
+
+<input class="search" id="search" placeholder="Search word or meaning..." oninput="searchWord()">
+</header>
+
+<div class="list" id="list"></div>
+
+<div class="modal" id="modal">
+<div class="modalbox">
+
+<input id="m_word" placeholder="Word">
+<input id="m_pron" placeholder="IPA">
+<input id="m_meaning" placeholder="Meaning">
+
+<textarea id="m_ex1" placeholder="Example 1"></textarea>
+<textarea id="m_ex1ipa" placeholder="IPA Example 1"></textarea>
+<textarea id="m_ex1tr" placeholder="Translation 1"></textarea>
+
+<textarea id="m_ex2" placeholder="Example 2"></textarea>
+<textarea id="m_ex2ipa" placeholder="IPA Example 2"></textarea>
+<textarea id="m_ex2tr" placeholder="Translation 2"></textarea>
+
+<div class="modalbtns">
+<button class="exbtn" onclick="speakEx(1)">🔊 Ex1</button>
+<button class="exbtn" onclick="speakEx(2)">🔊 Ex2</button>
+</div>
+
+<div class="modalbtns">
+<button class="save" onclick="saveWord()">Save</button>
+<button class="del" onclick="deleteWord()">Delete</button>
+<button class="cancel" onclick="closeModal()">Cancel</button>
+</div>
+
+</div>
+</div>
+
+<script>
+let data=[];
+let editIndex=null;
+let showOnlyFav=false;
+
+function saveStorage(){
+localStorage.setItem("vocabData",JSON.stringify(data));
+}
+
+function loadStorage(){
+let s=localStorage.getItem("vocabData");
+if(s) data=JSON.parse(s);
+}
+
+function render(){
+let list=document.getElementById("list");
+list.innerHTML="";
+document.getElementById("count").innerText="Total vocabulary: "+data.length;
+
+data.forEach((v,i)=>{
+if(showOnlyFav && !v.fav) return;
+
+let card=document.createElement("div");
+card.className="card";
+
+let star=v.fav?"⭐":"☆";
+
+card.innerHTML=`
+<div class="star" onclick="toggleFav(${i})">${star}</div>
+<div class="word">${v.word||""}</div>
+<div class="pron">${v.pron||""}</div>
+<div class="meaning">${v.meaning||""}</div>
+<div class="icons">
+<span onclick="speak('${v.word}')">🔊</span>
+<span onclick="speakSlow('${v.word}')">🐢</span>
+<span onclick="editWord(${i})">✏️</span>
+</div>
+`;
+
+list.appendChild(card);
+});
+
+saveStorage();
+}
+
+function speak(t){
+let u=new SpeechSynthesisUtterance(t);
+speechSynthesis.speak(u);
+}
+function speakSlow(t){
+let u=new SpeechSynthesisUtterance(t);
+u.rate=0.6;
+speechSynthesis.speak(u);
+}
+
+function speakEx(n){
+if(editIndex==null) return;
+let v=data[editIndex];
+let txt=n==1?v.ex1:v.ex2;
+if(!txt) return;
+speak(txt);
+}
+
+function openModal(){
+editIndex=null;
+m_word.value="";
+m_pron.value="";
+m_meaning.value="";
+m_ex1.value="";
+m_ex1ipa.value="";
+m_ex1tr.value="";
+m_ex2.value="";
+m_ex2ipa.value="";
+m_ex2tr.value="";
+modal.style.display="flex";
+}
+
+function editWord(i){
+editIndex=i;
+let v=data[i];
+m_word.value=v.word||"";
+m_pron.value=v.pron||"";
+m_meaning.value=v.meaning||"";
+m_ex1.value=v.ex1||"";
+m_ex1ipa.value=v.ex1ipa||"";
+m_ex1tr.value=v.ex1tr||"";
+m_ex2.value=v.ex2||"";
+m_ex2ipa.value=v.ex2ipa||"";
+m_ex2tr.value=v.ex2tr||"";
+modal.style.display="flex";
+}
+
+function closeModal(){
+modal.style.display="none";
+}
+
+function saveWord(){
+let v={
+word:m_word.value,
+pron:m_pron.value,
+meaning:m_meaning.value,
+ex1:m_ex1.value,
+ex1ipa:m_ex1ipa.value,
+ex1tr:m_ex1tr.value,
+ex2:m_ex2.value,
+ex2ipa:m_ex2ipa.value,
+ex2tr:m_ex2tr.value,
+fav:false
+};
+
+if(editIndex==null) data.push(v);
+else{
+v.fav=data[editIndex].fav;
+data[editIndex]=v;
+}
+
+closeModal();
+render();
+}
+
+function deleteWord(){
+if(editIndex==null) return;
+data.splice(editIndex,1);
+closeModal();
+render();
+}
+
+function deleteAll(){
+if(!confirm("Delete all vocabulary?")) return;
+data=[];
+render();
+}
+
+function toggleFav(i){
+data[i].fav=!data[i].fav;
+render();
+}
+
+function showFav(){
+showOnlyFav=!showOnlyFav;
+render();
+}
+
+function refreshList(){
+showOnlyFav=false;
+search.value="";
+render();
+}
+
+function searchWord(){
+let q=search.value.toLowerCase();
+let list=document.getElementById("list");
+list.innerHTML="";
+data.forEach((v,i)=>{
+if(v.word.toLowerCase().includes(q)||v.meaning.toLowerCase().includes(q)){
+let card=document.createElement("div");
+card.className="card";
+let star=v.fav?"⭐":"☆";
+card.innerHTML=`
+<div class="star" onclick="toggleFav(${i})">${star}</div>
+<div class="word">${v.word}</div>
+<div class="pron">${v.pron}</div>
+<div class="meaning">${v.meaning}</div>
+<div class="icons">
+<span onclick="speak('${v.word}')">🔊</span>
+<span onclick="speakSlow('${v.word}')">🐢</span>
+<span onclick="editWord(${i})">✏️</span>
+</div>`;
+list.appendChild(card);
+}
+});
+}
+
+function exportCSV(){
+let csv="word,pron,meaning,ex1,ex1ipa,ex1tr,ex2,ex2ipa,ex2tr,fav\n";
+data.forEach(v=>{
+csv+=`"${v.word}","${v.pron}","${v.meaning}","${v.ex1}","${v.ex1ipa}","${v.ex1tr}","${v.ex2}","${v.ex2ipa}","${v.ex2tr}","${v.fav}"\n`;
+});
+let blob=new Blob([csv],{type:"text/csv"});
+let a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="vocab-backup.csv";
+a.click();
+}
+
+function importCSV(){
+let inp=document.createElement("input");
+inp.type="file";
+inp.accept=".csv";
+inp.onchange=e=>{
+let file=e.target.files[0];
+let r=new FileReader();
+r.onload=()=>{
+let lines=r.result.split("\n");
+data=[];
+lines.slice(1).forEach(l=>{
+let c=l.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g);
+if(!c) return;
+data.push({
+word:c[0]?.replace(/"/g,""),
+pron:c[1]?.replace(/"/g,""),
+meaning:c[2]?.replace(/"/g,""),
+ex1:c[3]?.replace(/"/g,""),
+ex1ipa:c[4]?.replace(/"/g,""),
+ex1tr:c[5]?.replace(/"/g,""),
+ex2:c[6]?.replace(/"/g,""),
+ex2ipa:c[7]?.replace(/"/g,""),
+ex2tr:c[8]?.replace(/"/g,""),
+fav:c[9]=="true"
+});
+});
+render();
+alert("Import success");
+};
+r.readAsText(file);
+};
+inp.click();
+}
+
+loadStorage();
+render();
+</script>
+
+</body>
+</html>
