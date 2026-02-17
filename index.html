@@ -10,7 +10,6 @@ body{
 font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial;
 background:#f2f4f7;
 margin:0;
-padding:0;
 }
 
 .container{
@@ -19,15 +18,8 @@ margin:auto;
 padding:16px;
 }
 
-h1{
-margin:0;
-font-size:28px;
-}
-
-.total{
-color:#666;
-margin-bottom:12px;
-}
+h1{margin:0;font-size:28px;}
+.total{color:#666;margin-bottom:12px;}
 
 .btnrow{
 display:flex;
@@ -51,8 +43,8 @@ cursor:pointer;
 .delete{background:#eb5757;}
 .fav{background:#f2994a;}
 .refresh{background:#27ae60;}
-.plus{background:#bfc8d6;color:#333;}
 .pron{background:#56ccf2;}
+.plus{background:#bfc8d6;color:#333;}
 
 .search{
 width:100%;
@@ -70,22 +62,11 @@ border-radius:14px;
 padding:14px;
 margin-bottom:12px;
 box-shadow:0 2px 6px rgba(0,0,0,0.05);
+position:relative;
 }
 
-.word{
-font-size:20px;
-font-weight:700;
-}
-
-.ipa{
-color:#666;
-font-style:italic;
-margin-top:2px;
-}
-
-.meaning{
-margin-top:4px;
-}
+.word{font-size:20px;font-weight:700;}
+.meaning{margin-top:4px;}
 
 .icons{
 margin-top:6px;
@@ -93,23 +74,28 @@ font-size:18px;
 }
 
 .star{
-float:right;
+position:absolute;
+right:14px;
+top:14px;
 font-size:20px;
 cursor:pointer;
 color:#ccc;
 }
 
-.star.active{
-color:#f2c94c;
+.star.active{color:#f2c94c;}
+
+.edit{
+position:absolute;
+right:44px;
+top:14px;
+font-size:18px;
+cursor:pointer;
+color:#999;
 }
 
-/* modal */
 .modal{
 position:fixed;
-top:0;
-left:0;
-right:0;
-bottom:0;
+top:0;left:0;right:0;bottom:0;
 background:rgba(0,0,0,0.3);
 display:none;
 align-items:center;
@@ -122,8 +108,6 @@ padding:16px;
 border-radius:14px;
 width:92%;
 max-width:500px;
-max-height:90vh;
-overflow:auto;
 }
 
 .input{
@@ -136,14 +120,8 @@ font-size:15px;
 box-sizing:border-box;
 }
 
-.rowbtn{
-display:flex;
-gap:10px;
-margin-top:10px;
-}
-
+.rowbtn{display:flex;gap:10px;margin-top:10px;}
 .save{background:#2f80ed;}
-.del{background:#eb5757;}
 .cancel{background:#bfc8d6;color:#333;}
 </style>
 </head>
@@ -152,16 +130,16 @@ margin-top:10px;
 <div class="container">
 
 <h1>📘 My Vocab Ultra</h1>
-<div class="total" id="total">Total vocabulary: 0</div>
+<div class="total" id="total"></div>
 
 <div class="btnrow">
 <button class="btn import" onclick="importCSV()">📥 Import</button>
 <button class="btn export" onclick="exportCSV()">📤 Export</button>
 <button class="btn delete" onclick="deleteAll()">🧨 Delete All</button>
-<button class="btn fav" onclick="showFav()">⭐ Favorites</button>
+<button class="btn fav" onclick="toggleFavView()">⭐ Favorites</button>
 <button class="btn refresh" onclick="refreshList()">🔄</button>
-<button class="btn plus" onclick="openAdd()">＋</button>
 <button class="btn pron" onclick="openPron()">🎤 Pronunciation</button>
+<button class="btn plus" onclick="openAdd()">＋</button>
 </div>
 
 <input class="search" id="search" placeholder="Search word or meaning..." oninput="render()">
@@ -170,13 +148,11 @@ margin-top:10px;
 
 </div>
 
-<!-- MODAL ADD -->
+<!-- ADD -->
 <div class="modal" id="modal">
 <div class="modalbox">
 <input class="input" id="m_word" placeholder="Word">
-<input class="input" id="m_ipa" placeholder="IPA">
 <input class="input" id="m_meaning" placeholder="Meaning">
-
 <div class="rowbtn">
 <button class="btn save" onclick="saveWord()">Save</button>
 <button class="btn cancel" onclick="closeModal()">Cancel</button>
@@ -184,7 +160,7 @@ margin-top:10px;
 </div>
 </div>
 
-<!-- MODAL PRON -->
+<!-- PRON -->
 <div class="modal" id="pronModal">
 <div class="modalbox">
 <input class="input" id="pronInput" placeholder="Type word">
@@ -198,8 +174,9 @@ margin-top:10px;
 </div>
 
 <script>
-let vocab = JSON.parse(localStorage.getItem("vocab")||"[]");
+let vocab=JSON.parse(localStorage.getItem("vocab")||"[]");
 let favOnly=false;
+let editIndex=-1;
 
 function saveStorage(){
 localStorage.setItem("vocab",JSON.stringify(vocab));
@@ -209,32 +186,31 @@ function render(){
 let s=document.getElementById("search").value.toLowerCase();
 let list=document.getElementById("list");
 list.innerHTML="";
-let arr=vocab.filter(v=>(
+let arr=vocab.filter(v=>
 (!favOnly||v.fav)&&
 (v.word.toLowerCase().includes(s)||
 v.meaning.toLowerCase().includes(s))
-));
+);
 arr.forEach((v,i)=>{
+let idx=vocab.indexOf(v);
 let d=document.createElement("div");
 d.className="card";
 d.innerHTML=`
-<div class="star ${v.fav?'active':''}" onclick="toggleFav(${i})">★</div>
+<div class="star ${v.fav?'active':''}" onclick="toggleFav(${idx})">★</div>
+<div class="edit" onclick="editWord(${idx})">✏️</div>
 <div class="word">${v.word}</div>
-<div class="ipa">${v.ipa||""}</div>
 <div class="meaning">${v.meaning||""}</div>
-<div class="icons">
-🔊 <span onclick="speak('${v.word}',1)">🐢</span>
-</div>
+<div class="icons">🔊 <span onclick="speak('${v.word}',0.7)">🐢</span></div>
 `;
 list.appendChild(d);
 });
 document.getElementById("total").innerText="Total vocabulary: "+vocab.length;
 }
 
-function speak(t,rate){
+function speak(t,r){
 let u=new SpeechSynthesisUtterance(t);
 u.lang="en-US";
-u.rate=rate;
+u.rate=r;
 speechSynthesis.speak(u);
 }
 
@@ -244,7 +220,7 @@ saveStorage();
 render();
 }
 
-function showFav(){
+function toggleFavView(){
 favOnly=!favOnly;
 render();
 }
@@ -264,6 +240,16 @@ render();
 }
 
 function openAdd(){
+editIndex=-1;
+document.getElementById("m_word").value="";
+document.getElementById("m_meaning").value="";
+document.getElementById("modal").style.display="flex";
+}
+
+function editWord(i){
+editIndex=i;
+document.getElementById("m_word").value=vocab[i].word;
+document.getElementById("m_meaning").value=vocab[i].meaning;
 document.getElementById("modal").style.display="flex";
 }
 
@@ -273,10 +259,14 @@ document.getElementById("modal").style.display="none";
 
 function saveWord(){
 let w=document.getElementById("m_word").value.trim();
-let i=document.getElementById("m_ipa").value.trim();
 let m=document.getElementById("m_meaning").value.trim();
 if(!w)return;
-vocab.push({word:w,ipa:i,meaning:m,fav:false});
+if(editIndex>=0){
+vocab[editIndex].word=w;
+vocab[editIndex].meaning=m;
+}else{
+vocab.push({word:w,meaning:m,fav:false});
+}
 saveStorage();
 closeModal();
 render();
@@ -294,13 +284,8 @@ let lines=ev.target.result.split("\n");
 vocab=[];
 lines.forEach(l=>{
 let c=l.split(",");
-if(c.length>=3){
-vocab.push({
-word:c[0],
-ipa:c[1],
-meaning:c[2],
-fav:false
-});
+if(c.length>=2){
+vocab.push({word:c[0],meaning:c[1],fav:false});
 }
 });
 saveStorage();
@@ -313,7 +298,7 @@ inp.click();
 }
 
 function exportCSV(){
-let csv=vocab.map(v=>`${v.word},${v.ipa||""},${v.meaning||""}`).join("\n");
+let csv=vocab.map(v=>`${v.word},${v.meaning}`).join("\n");
 let a=document.createElement("a");
 a.href=URL.createObjectURL(new Blob([csv]));
 a.download="vocab.csv";
